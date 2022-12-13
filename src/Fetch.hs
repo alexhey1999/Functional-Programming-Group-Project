@@ -17,6 +17,6 @@ get_data_from_file file_name = do
     return $ B.readFile jsonFile
 
 
-main :: IO()
-main = do
-    print $ get_data_from_url "https://alexhey.co.uk/files/Average%20House%20Prices.json"
+-- main :: IO()
+-- main = do
+--     print $ get_data_from_url "https://alexhey.co.uk/files/Average%20House%20Prices.json"
