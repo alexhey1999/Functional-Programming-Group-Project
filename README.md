@@ -1,1 +1,1 @@
-# Functional-Programming-Group-Project
+# Haskell-Project
