@@ -1,22 +1,18 @@
 module Fetch (
-    get_data_from_url , get_data_from_file
+    get_data_from_url
 ) where
 
-import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString.Lazy.Char8 as L8
 import Network.HTTP.Simple
-import System.IO
 
-get_data_from_url :: URL -> IO B.ByteString
+type URL = String
+
+get_data_from_url :: URL -> IO L8.ByteString
 get_data_from_url url = do
     request <- parseRequest url
     response <- httpLBS request
     return $ getResponseBody response
 
-get_data_from_file :: file_name -> IO B.ByteString
-get_data_from_file file_name = do
-    return $ B.readFile jsonFile
-
-
--- main :: IO()
--- main = do
---     print $ get_data_from_url "https://alexhey.co.uk/files/Average%20House%20Prices.json"
+-- get_data_from_file :: file_name -> IO B.ByteString
+-- get_data_from_file file_name = do
+--     return $ B.readFile file_name

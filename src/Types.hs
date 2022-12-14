@@ -3,8 +3,8 @@
 module Types (
     Region (..),
     Price (..),
-    Info (..),
-    Data (..)
+    Record (..),
+    Records (..)
 ) where
 
 import GHC.Generics
@@ -15,73 +15,67 @@ import Database.SQLite.Simple.ToRow
 import Data.Aeson
 
 data Region = Region {
-    id :: Int,
-    region :: String,
-    area_ :: String,
+    id_ :: Int,
+    region_ :: String,
+    area_ :: String
 } deriving (Show)
 
 data Price = Price {
-    date :: String,
-    average :: Float,
-    monthly :: Maybe Float,
-    annual :: Maybe Float
-    sa_ :: Maybe Float
-    fk_region :: Int  -- Auto increment
+    date_ :: String,
+    average_ :: Float,
+    monthly_ :: Maybe Float,
+    annual_ :: Maybe Float,
+    sa_ :: Maybe Float,
+    fk_region :: Int
 } deriving (Show)
 
-data Info = Info {
+data Record = Record {
     region :: String,
-    date :: String,
     area :: String,
+    date :: String,
     average :: Float,
     monthly :: Maybe Float,
-    annual :: Maybe Float
+    annual :: Maybe Float,
+    sa :: Maybe Float
 } deriving (Show, Generic)
 
-data Data = Data {
-    data :: [Info]
+data Records = Records {
+    records :: [Record]
 } deriving (Show, Generic)
-
-
-instance FromRow Info where 
-    fromRow = Info <$> field <> field <> field <> field <> field <> field
-
-instance FromRow Price where
-    fromRow = Price <$> field <> field <> field <> field 
-
-instance ToRow Price where
-    toRow (Price av mon an sa)
-        = toRow (av, mon, an, sa)
-
-instance FromRow Region where
-    fromRow = Region <$> field <*> field 
-
-instance ToRow Region where
-    toRow (Region re ar)
-        = toRow (re, ar)
-
-instance FromRow Date where
-    fromRow = Date <$> field 
-
-instance ToRow Date where
-    toRow (Date da)
-        = toRow (da)
-
 
 changeNames :: String -> String
-changeNames "region" = "region_name"
-changeNames "area" = "area_code"
-changeNames "average" = "average_prices"
-changeNames "monthly" = "monthly_change"
-changeNames "annual" = "annual_change"
+changeNames "date" = "Date"
+changeNames "region" = "Region_Name"
+changeNames "area" = "Area_Code"
+changeNames "average" = "Average_Price"
+changeNames "monthly" = "Monthly_Change"
+changeNames "annual" = "Annual_Change"
+changeNames "sa" = "Average_Price_SA"
 changeNmes other = other
 
 customOptions :: Options
 customOptions = defaultOptions {
-    fieldLabelModifier = renameFields
+    fieldLabelModifier = changeNames
 }
 
-instance FromJSON Info where
+instance ToRow Region where
+    toRow (Region reid re ar)
+        = toRow (reid, re, ar)
+
+instance FromRow Region where
+    fromRow = Region <$> field <*> field <*> field 
+
+instance FromRow Price where
+    fromRow = Price <$> field <*> field <*> field <*> field <*> field <*> field
+
+instance ToRow Price where
+    toRow (Price d av mon an sa fk)
+        = toRow (d, av, mon, an, sa, fk)
+
+instance FromRow Record where 
+    fromRow = Record <$> field <*> field <*> field <*> field <*> field <*> field <*> field
+
+instance FromJSON Record where
     parseJSON = genericParseJSON customOptions
 
-instance FromJSON Info
+instance FromJSON Records
