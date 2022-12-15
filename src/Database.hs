@@ -3,7 +3,14 @@
 module Database (
     create_tables,
     drop_tables,
-    save_data
+    save_data,
+    get_prices_by_region,
+    get_prices_by_area_code,
+    get_highest_average_by_region,
+    get_lowest_average_by_region,
+    get_total_price_record_count,
+    get_total_region_record_count,
+    get_average_on_date_range
 ) where
 
 import Types
@@ -24,7 +31,7 @@ create_tables = do
         \monthly REAL, \
         \annual REAL, \
         \sa REAL, \
-        \fk_country INTEGER\
+        \fk_region INTEGER\
         \)"
 
 -- Drops all tables in the database -> returns nothing
@@ -35,36 +42,114 @@ drop_tables = do
     execute_ conn "DROP TABLE IF EXISTS prices "
 
 get_or_create_region :: String -> String -> IO Region
-get_or_create_region reg area = do
+get_or_create_region reg ar = do
     conn <- open "average-house-prices.sqlite"
-    database_records <- queryNamed conn "SELECT * FROM regions WHERE region=:reg AND area=:area" [":reg" := reg, ":area" := area]
+    database_records <- queryNamed conn "SELECT * FROM regions WHERE region=:reg AND area=:area" [":reg" := reg, ":area" := ar]
     if length database_records > 0 then
         return . head $ database_records
     else do
-        execute conn "INSERT INTO regions (region, area) VALUES (?, ?)" (reg, area)
-        get_or_create_region reg area
+        execute conn "INSERT INTO regions (region, area) VALUES (?, ?)" (reg, ar)
+        get_or_create_region reg ar
 
 -- starts process to generate records in both tables
 create_data_record :: Record -> IO ()
 create_data_record record = do
     conn <- open "average-house-prices.sqlite"
-    region <- get_or_create_region (region record) (area record)
+    region_selected <- get_or_create_region (region record) (area record)
     let price = Price {
+        date_ = date record,
         average_ = average record,
         monthly_ = monthly record,
         annual_ = annual record,
         sa_ = sa record,
-        fk_region = id_ region
+        fk_region = id_ region_selected
     }
     execute conn "INSERT INTO prices VALUES (?,?,?,?,?,?)" price
+    close conn
 
 save_data :: [Record] -> IO ()
 save_data = mapM_ (create_data_record)
 
+-- Get List of prices by re
+get_prices_by_region :: IO [Price]
+get_prices_by_region = do
+    conn <- open "average-house-prices.sqlite"
+    putStr "Region Name to query: "
+    region_name <- getLine
+    let sql_query = "SELECT p.* FROM prices as p INNER JOIN regions as r on p.fk_region == r.id WHERE r.region=?"
+    query conn sql_query [region_name]
+    
+get_prices_by_area_code :: IO [Price]
+get_prices_by_area_code = do
+    conn <- open "average-house-prices.sqlite"
+    putStr "Area Name to query: "
+    area_name <- getLine
+    let sql_query = "SELECT p.* FROM prices as p INNER JOIN regions as r on p.fk_region == r.id WHERE r.area=?"
+    query conn sql_query [area_name]
+
+-- All time high price per region
+get_highest_average_by_region :: IO ()
+get_highest_average_by_region = do
+    conn <- open "average-house-prices.sqlite"
+    putStr "Region Name to query: "
+    region_name <- getLine
+    let sql_query = "SELECT region, area, date, average, monthly, annual, sa FROM prices INNER JOIN regions on fk_region == id WHERE region=?"
+    records_queried <- query conn sql_query [region_name]
+    let highest_average = maximum (map average records_queried)
+    print $ "Highest Average Price: " ++ show(highest_average)
+
+-- All time low price per region
+get_lowest_average_by_region :: IO ()
+get_lowest_average_by_region = do
+    conn <- open "average-house-prices.sqlite"
+    putStr "Region Name to query: "
+    region_name <- getLine
+    let sql_query = "SELECT region, area, date, average, monthly, annual, sa FROM prices INNER JOIN regions on fk_region == id WHERE region=?"
+    records_queried <- query conn sql_query [region_name]
+    let lowest_average = minimum (map average records_queried)
+
+    print $ "Lowest Average Price: " ++ show(lowest_average)
+
+-- Total Price records
+get_total_price_record_count :: IO ()
+get_total_price_record_count = do
+    conn <- open "average-house-prices.sqlite"
+    let sql_query = "SELECT region, area, date, average, monthly, annual, sa FROM prices INNER JOIN regions on fk_region == id"
+    records_queried <- query_ conn sql_query :: IO [Record]
+    let row_count = length records_queried
+    print $ "Total Price Rows: " ++ show(row_count)
+
+-- Total Region records
+get_total_region_record_count :: IO ()
+get_total_region_record_count = do
+    conn <- open "average-house-prices.sqlite"
+    let sql_query = "SELECT id, region, area FROM regions"
+    records_queried <- query_ conn sql_query :: IO [Region]
+    let row_count = length records_queried
+    print $ "Total Record Rows: " ++ show(row_count)
+
+
+-- Average price by region by date (over date range)
+get_average_on_date_range :: IO ()
+get_average_on_date_range = do
+    conn <- open "average-house-prices.sqlite"
+    putStrLn "Region Name: "
+    selected_region <- getLine
+    putStr "Start Date: "
+    start_date <- getLine
+    putStr "End Date: "
+    end_date <- getLine
+    let sql_query = "SELECT region, area, date, average, monthly, annual, sa FROM prices INNER JOIN regions on fk_region == id WHERE date >= ? AND date <= ? and region = ?"
+    records_queried <- query conn sql_query [start_date, end_date, selected_region] :: IO [Record]
+    let house_price = map average records_queried
+    
+    print $ "Average price over range: " ++ show(calc_average house_price)
+
+-- Referenced from https://wiki.haskell.org/Haskell_a_la_carte#Entr.C3.A9es
+calc_average xs = sum xs / (fromIntegral (length xs))
+
 -- TO IMPLEMENT
 -- =================================================================
--- All time high price per region
--- All time low price per region
 -- Average annual change (by region) (by date)
 -- Lowest annual change (by region) (by date)
 
@@ -73,8 +158,6 @@ save_data = mapM_ (create_data_record)
 -- =================================================================
 -- Average price per region
 -- list of average price per region (by date) (over date range)
--- Average price by region by date (over date range)
 -- Highest annual change (by region) (by date)
--- Total records
 -- Total Locations
 -- Total regions
