@@ -21,7 +21,8 @@ main = do
     putStrLn "(8) Total Price Row Count"
     putStrLn "(9) Total Region Row Count"
     putStrLn "(10) Average House Price in date range"
-    putStrLn "(11) Quit "
+    putStrLn "(11) Write to json file "
+    putStrLn "(12) Quit "
     hSetBuffering stdout NoBuffering
     option <- readLn :: IO Int
     case option of
@@ -85,5 +86,11 @@ main = do
         10 -> do
             get_average_on_date_range
             print "done"
+
+        11 -> do
+            let url = "https://alexhey.co.uk/files/Average%20House%20Prices.json"
+            -- let url = "https://alexhey.co.uk/files/Average%20House%20Prices%20Reduced.json"
+            json <- get_data_from_url url
+            make_json_file json
 
         _ -> print "Exiting..."
